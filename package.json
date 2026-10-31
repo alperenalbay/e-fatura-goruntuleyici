@@ -1,0 +1,16 @@
+{
+  "name": "e-fatura-goruntuleyici",
+  "private": true,
+  "version": "1.0.0",
+  "description": "e-Fatura / e-Arşiv / e-İrsaliye XML görüntüleyici (Tauri)",
+  "license": "MIT",
+  "scripts": {
+    "sync": "node scripts/sync-ui.mjs",
+    "dev": "node scripts/sync-ui.mjs && tauri dev",
+    "build": "tauri build",
+    "build:exe": "tauri build --no-bundle"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

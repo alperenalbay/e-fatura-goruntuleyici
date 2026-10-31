@@ -1,0 +1,25 @@
+[package]
+name = "efatura-goruntuleyici"
+version = "1.0.0"
+description = "e-Fatura / e-Arşiv / e-İrsaliye XML görüntüleyici"
+authors = ["e-Fatura Görüntüleyici contributors"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.90"
+
+[lib]
+name = "efatura_goruntuleyici_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+reqwest = { version = "0.12", default-features = false, features = ["native-tls"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Bağımlılıkları kur
+        run: npm ci
+
+      - name: Sürüm etiketi denetimi
+        shell: bash
+        run: |
+          PAKET=$(node -p "require('./package.json').version")
+          if [ "v$PAKET" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Etiket (${GITHUB_REF_NAME}) package.json sürümüyle (v$PAKET) uyuşmuyor."
+            exit 1
+          fi
+
+      - name: Derle ve taslak sürüm oluştur
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "e-Fatura Görüntüleyici ${{ github.ref_name }}"
+          releaseBody: "Değişiklikler için CHANGELOG.md dosyasına bakın."
+          releaseDraft: true
+          prerelease: false
+
+      - name: Taşınabilir exe'yi sürüme ekle
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${GITHUB_REF_NAME}" src-tauri/target/release/efatura-goruntuleyici.exe --clobber

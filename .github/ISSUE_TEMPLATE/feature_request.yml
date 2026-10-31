@@ -1,0 +1,26 @@
+name: Özellik isteği
+description: Yeni bir özellik veya iyileştirme önerin
+title: "[Özellik] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: sorun
+    attributes:
+      label: Çözmek istediğiniz sorun
+      description: Hangi ihtiyaç veya eksiklik?
+    validations:
+      required: true
+
+  - type: textarea
+    id: oneri
+    attributes:
+      label: Önerilen çözüm
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatif
+    attributes:
+      label: Düşündüğünüz alternatifler
+    validations:
+      required: false

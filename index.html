@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>E-Belge Görüntüleyici</title>
+<style>
+  :root{
+    --bg:#e9edf2; --panel:#f3f5f8; --card:#ffffff; --fg:#1f2328; --muted:#667085;
+    --border:#cfd6de; --border2:#b7c0ca; --accent:#1f6feb; --accent2:#1a5fd0;
+    --ok:#1a7f37; --warn:#9a6700; --err:#cf222e; --sel:#dbeafe;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.45 "Segoe UI",Tahoma,system-ui,-apple-system,sans-serif;overflow:hidden}
+  #app{display:flex;flex-direction:column;height:100vh;min-height:0}
+
+  /* ---- menü çubuğu ---- */
+  #menubar{display:flex;align-items:center;gap:10px;padding:0 8px;height:32px;background:var(--panel);border-bottom:1px solid var(--border);flex:0 0 auto}
+  .brand{font-weight:700;font-size:12.5px;color:#0b3d91;letter-spacing:.2px;padding-right:6px;white-space:nowrap}
+  .menus{display:flex;gap:1px}
+  .menu{position:relative}
+  .mtitle{background:none;border:0;padding:5px 10px;font:inherit;color:var(--fg);cursor:pointer;border-radius:4px}
+  .mtitle:hover,.menu.open .mtitle{background:#e2e8f0}
+  .dd{display:none;position:absolute;top:100%;left:0;min-width:220px;background:#fff;border:1px solid var(--border2);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.18);padding:4px;z-index:60}
+  .menu.open .dd{display:block}
+  .dd button{display:flex;justify-content:space-between;gap:18px;width:100%;background:none;border:0;padding:6px 10px;font:inherit;text-align:left;cursor:pointer;border-radius:4px;color:var(--fg)}
+  .dd button:hover{background:var(--sel)}
+  .dd .sep{height:1px;background:var(--border);margin:4px 2px}
+  .kbd{color:var(--muted);font-size:11px}
+  .filelabel{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:45%}
+
+  /* ---- araç çubuğu ---- */
+  #toolbar{display:flex;align-items:stretch;gap:2px;padding:4px 6px;background:linear-gradient(#fbfcfd,#eef1f5);border-bottom:1px solid var(--border);flex:0 0 auto;overflow-x:auto}
+  .tb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:60px;padding:4px 8px;background:transparent;border:1px solid transparent;border-radius:6px;font:inherit;font-size:11.5px;color:var(--fg);cursor:pointer;white-space:nowrap}
+  .tb svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .tb:hover{background:#fff;border-color:var(--border)}
+  .tb:active{background:#e6edf7}
+  .tb.on{background:#fff;border-color:var(--accent);color:var(--accent2);font-weight:600}
+  .tbsep{width:1px;background:var(--border);margin:6px 6px}
+
+  /* ---- bölünmüş görünüm ---- */
+  #split{flex:1 1 auto;display:flex;min-height:0;padding:6px;gap:0;background:var(--bg)}
+  .pane{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--card);border:1px solid var(--border);border-radius:6px;overflow:hidden;flex:1 1 50%}
+  .paneHead{display:flex;align-items:center;gap:8px;padding:4px 10px;background:var(--panel);border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:#344054;flex:0 0 auto}
+  .paneHead .tag{margin-left:auto;font-weight:400;color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%}
+  .paneBody{flex:1 1 auto;min-height:0;position:relative;background:#fff}
+  #docFrame{width:100%;height:100%;border:0;display:block;background:#fff}
+  #xmlPre{margin:0;height:100%;overflow:auto;padding:10px 12px;font:12px/1.5 Consolas,"Courier New",monospace;white-space:pre;color:#24292f;background:#fff;tab-size:4}
+  #splitter{flex:0 0 7px;cursor:col-resize;background:transparent;position:relative}
+  #splitter::after{content:"";position:absolute;top:0;bottom:0;left:3px;width:1px;background:var(--border)}
+  #split[data-mode="doc"] #paneXml,#split[data-mode="doc"] #splitter{display:none}
+  #split[data-mode="xml"] #paneDoc,#split[data-mode="xml"] #splitter{display:none}
+
+  /* ---- mali mühür paneli ---- */
+  .sigPanel{display:flex;align-items:center;gap:10px;padding:6px 10px;background:#dce9f2;border-top:1px solid #a8c4d6;flex:0 0 auto;font-size:12px}
+  .sigPanel[hidden]{display:none}
+  .sigPanel .ribbon{width:12px;height:12px;border-radius:3px;background:var(--warn);flex:0 0 auto}
+  .sigPanel.ok .ribbon{background:var(--ok)}
+  .sigPanel.err .ribbon{background:var(--err)}
+  .sigPanel .sp{flex:1 1 auto}
+
+  /* ---- durum çubuğu ---- */
+  #statusbar{display:flex;align-items:center;gap:10px;height:26px;padding:0 10px;background:var(--panel);border-top:1px solid var(--border);font-size:12px;color:#475467;flex:0 0 auto}
+  #statusMsg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .prog{margin-left:auto;width:180px;height:9px;border:1px solid var(--border2);border-radius:5px;background:#fff;overflow:hidden;opacity:0;transition:opacity .15s}
+  .prog.on{opacity:1}
+  #progBar{height:100%;width:0;background:linear-gradient(90deg,#5b9bff,#1f6feb);transition:width .06s linear}
+
+  /* ---- düğmeler ---- */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--border2);background:linear-gradient(#fff,#f4f6f9);border-radius:5px;font:inherit;color:var(--fg);cursor:pointer}
+  .btn:hover{background:#eef2f7}
+  .btn.primary{background:var(--accent);border-color:var(--accent2);color:#fff}
+  .btn.primary:hover{background:var(--accent2)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+
+  /* ---- diyaloglar ---- */
+  .modal{position:fixed;inset:0;background:rgba(15,23,42,.35);display:flex;align-items:center;justify-content:center;padding:20px;z-index:80}
+  .modal[hidden]{display:none}
+  .dlg{background:#fff;border:1px solid var(--border2);border-radius:8px;box-shadow:0 18px 48px rgba(15,23,42,.28);width:min(620px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden}
+  .dlg.wide{width:min(980px,100%)}
+  .dlgHead{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--border);font-weight:600}
+  .dlgHead .x{margin-left:auto;background:none;border:0;font-size:15px;line-height:1;cursor:pointer;color:var(--muted);padding:2px 6px;border-radius:4px}
+  .dlgHead .x:hover{background:#e2e8f0}
+  .dlgBody{padding:14px 16px;overflow:auto;min-height:0}
+  .dlgBody.wide{padding:0}
+  .dlgFoot{display:flex;justify-content:flex-end;gap:8px;padding:10px 12px;background:var(--panel);border-top:1px solid var(--border)}
+  .drow{display:grid;grid-template-columns:170px 1fr;gap:5px 12px;font-size:12.5px}
+  .drow .k{color:var(--muted)}
+  .drow .v{word-break:break-word}
+  .dmsg{display:flex;gap:12px;align-items:flex-start}
+  .dicon{width:34px;height:34px;flex:0 0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:17px;background:#64748b}
+  .dicon.ok{background:var(--ok)} .dicon.warn{background:#b45309} .dicon.err{background:var(--err)}
+  .dtext{font-size:13.5px;line-height:1.5}
+  .draw{margin-top:12px;background:#f6f8fa;border:1px solid var(--border);border-radius:5px;padding:8px 10px;font:11.5px/1.5 Consolas,monospace;white-space:pre-wrap;word-break:break-word;max-height:180px;overflow:auto}
+  .dhint{color:var(--muted);font-size:12px;margin-top:10px}
+  .dlgBody iframe{width:100%;height:60vh;border:0;display:block}
+  .banner{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid #d0d7de;border-radius:6px;background:#f6f8fa;font-size:12.5px}
+
+  @media print{ body{overflow:visible} #menubar,#toolbar,#statusbar,#splitter,.paneHead{display:none} }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="menubar">
+    <span class="brand">E-Belge Görüntüleyici</span>
+    <div class="menus">
+      <div class="menu"><button class="mtitle" data-toggle>Dosya</button>
+        <div class="dd">
+          <button data-cmd="open">Aç…<span class="kbd">Ctrl+O</span></button>
+          <button data-cmd="openXslt">XSLT Dosyası Seç…</button>
+          <button data-cmd="clear">Temizle</button>
+          <div class="sep"></div>
+          <button data-cmd="exit">Çıkış</button>
+        </div>
+      </div>
+      <div class="menu"><button class="mtitle" data-toggle>Görünüm</button>
+        <div class="dd">
+          <button data-cmd="view-doc">Belge</button>
+          <button data-cmd="view-xml">Xml</button>
+          <button data-cmd="view-both">Belge/Xml</button>
+          <div class="sep"></div>
+          <button data-cmd="print">Yazdır<span class="kbd">Ctrl+P</span></button>
+        </div>
+      </div>
+      <div class="menu"><button class="mtitle" data-toggle>Mali Mühür</button>
+        <div class="dd">
+          <button data-cmd="verify">Doğrula</button>
+          <div class="sep"></div>
+          <button data-cmd="cert">Sertifika Bilgileri</button>
+          <button data-cmd="verifyLog">Doğrulama Bilgileri</button>
+        </div>
+      </div>
+      <div class="menu"><button class="mtitle" data-toggle>Sorgulama</button>
+        <div class="dd">
+          <button data-cmd="query">Gelir İdaresinden Sorgula</button>
+        </div>
+      </div>
+      <div class="menu"><button class="mtitle" data-toggle>Yardım</button>
+        <div class="dd">
+          <button data-cmd="about">Hakkında</button>
+        </div>
+      </div>
+    </div>
+    <span id="fileLabel"></span>
+  </div>
+
+  <div id="toolbar">
+    <button class="tb" data-cmd="open" title="XML dosyası aç (Ctrl+O)">
+      <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Aç</span>
+    </button>
+    <button class="tb" data-cmd="verify" title="Mali mühür bilgilerini kontrol et">
+      <svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span>Doğrula</span>
+    </button>
+    <button class="tb" data-cmd="query" title="Gelir İdaresinden sorgula">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg><span>Sorgula</span>
+    </button>
+    <div class="tbsep"></div>
+    <button class="tb" data-cmd="view-doc" data-mode="doc" title="Sadece belge">
+      <svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg><span>Belge</span>
+    </button>
+    <button class="tb" data-cmd="view-xml" data-mode="xml" title="Sadece XML">
+      <svg viewBox="0 0 24 24"><path d="M9 8l-4 4 4 4"/><path d="M15 8l4 4-4 4"/></svg><span>Xml</span>
+    </button>
+    <button class="tb" data-cmd="view-both" data-mode="both" title="Yan yana">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg><span>Belge/Xml</span>
+    </button>
+    <div class="tbsep"></div>
+    <button class="tb" data-cmd="print" title="Yazdır / PDF (Ctrl+P)">
+      <svg viewBox="0 0 24 24"><path d="M7 9V4h10v5"/><rect x="4" y="9" width="16" height="7" rx="2"/><path d="M7 14h10v6H7z"/></svg><span>Yazdır</span>
+    </button>
+    <button class="tb" data-cmd="about" title="Hakkında">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".9" fill="currentColor" stroke="none"/></svg><span>Hakkında</span>
+    </button>
+    <button class="tb" data-cmd="exit" title="Çıkış">
+      <svg viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h9"/></svg><span>Çıkış</span>
+    </button>
+  </div>
+
+  <div id="split" data-mode="doc">
+    <section id="paneDoc" class="pane">
+      <div class="paneHead"><span>Belge Görünümü</span><span id="docSource" class="tag"></span></div>
+      <div class="paneBody"><iframe id="docFrame" title="Belge görünümü" sandbox="allow-same-origin allow-modals allow-downloads"></iframe></div>
+      <div id="imzaPanel" class="sigPanel" hidden>
+        <span class="ribbon"></span>
+        <span id="imzaText">Mali mühür kontrol</span>
+        <span class="sp"></span>
+        <button class="btn" id="btnDogrulamaBilgileri" data-cmd="verifyLog">Doğrulama Bilgileri</button>
+        <button class="btn" id="btnSertifika" data-cmd="cert">Sertifika Bilgileri</button>
+      </div>
+    </section>
+    <div id="splitter" title="Bölmeyi sürükleyin"></div>
+    <section id="paneXml" class="pane">
+      <div class="paneHead"><span>Xml Görünümü</span><span id="xmlSize" class="tag"></span></div>
+      <div class="paneBody"><pre id="xmlPre"></pre></div>
+    </section>
+  </div>
+
+  <div id="statusbar">
+    <span id="statusMsg">Hazır</span>
+    <div class="prog"><div id="progBar"></div></div>
+  </div>
+</div>
+
+<input type="file" id="fXml" accept=".xml,application/xml,text/xml" hidden />
+<input type="file" id="fXslt" accept=".xsl,.xslt,application/xml,text/xml" hidden />
+
+<div class="modal" id="dlg" hidden>
+  <div class="dlg" id="dlgBox" role="dialog" aria-modal="true">
+    <div class="dlgHead"><span id="dlgTitle"></span><button class="x" id="dlgX" title="Kapat">✕</button></div>
+    <div class="dlgBody" id="dlgBody"></div>
+    <div class="dlgFoot" id="dlgFoot"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = (s)=>document.querySelector(s);
+  const $$ = (s)=>Array.from(document.querySelectorAll(s));
+
+  // ---------- durum ----------
+  let xmlText = null, xmlFileName = null;
+  let xsltText = null, xsltFileName = null;
+  let parsedDoc = null, parsedData = null;
+  let docMode = 'none';
+
+  // ---------- yardımcılar ----------
+  function esc(s){ if(s==null) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function first(el, local){ if(!el) return null; const c = el.getElementsByTagNameNS('*', local); return c && c.length ? c[0] : null; }
+  function all(el, local){ if(!el) return []; return Array.from(el.getElementsByTagNameNS('*', local)); }
+  function direct(parent, local){ const r=[]; if(!parent) return r; for(let i=0;i<parent.children.length;i++){ const c=parent.children[i]; if(c.localName===local) r.push(c);} return r; }
+  function directText(parent, local){ const c = direct(parent,local)[0]; return c ? (c.textContent||'').trim() : ''; }
+  function txt(el, local){ const n = (typeof local==='string') ? first(el, local) : local; return n ? (n.textContent||'').trim() : ''; }
+  function attr(el, name){ return el ? (el.getAttribute(name)||'') : ''; }
+  function algName(uri){
+    if(!uri) return '';
+    const u = uri.toLowerCase();
+    if(u.includes('rsa-sha384')) return 'RSA-SHA384';
+    if(u.includes('rsa-sha256')) return 'RSA-SHA256';
+    if(u.includes('rsa-sha1')) return 'RSA-SHA1';
+    if(u.includes('ecdsa')) return 'ECDSA';
+    if(u.includes('sha384')) return 'SHA-384';
+    if(u.includes('sha256')) return 'SHA-256';
+    return uri.split('#').pop();
+  }
+
+  // ---------- Tauri köprüsü ----------
+  const TAURI = (window.__TAURI__ && window.__TAURI__.core) ? window.__TAURI__.core : null;
+  const isTauri = !!TAURI;
+  function tauriCagir(cmd, args){ return TAURI.invoke(cmd, args || {}); }
+
+  // ---------- durum çubuğu ----------
+  let busyTimer = null;
+  function setStatus(msg){ $('#statusMsg').textContent = msg || 'Hazır'; }
+  function busy(msg){
+    setStatus(msg);
+    const wrap = $('#progBar').parentElement;
+    wrap.classList.add('on');
+    let v = 0;
+    clearInterval(busyTimer);
+    busyTimer = setInterval(()=>{ v = (v + 7) % 110; $('#progBar').style.width = v + '%'; }, 60);
+  }
+  function idle(msg){
+    clearInterval(busyTimer); busyTimer = null;
+    $('#progBar').style.width = '0';
+    $('#progBar').parentElement.classList.remove('on');
+    setStatus(msg || 'Hazır');
+  }
+
+  // ---------- görünüm modu ----------
+  function setViewMode(mode){
+    $('#split').dataset.mode = mode;
+    if(mode === 'both'){
+      $('#paneDoc').style.flex = '1 1 50%';
+      $('#paneXml').style.flex = '1 1 50%';
+    } else {
+      $('#paneDoc').style.flex = '';
+      $('#paneXml').style.flex = '';
+    }
+    $$('#toolbar .tb[data-mode]').forEach(b=>b.classList.toggle('on', b.dataset.mode === mode));
+  }
+
+  let dragging = false;
+  $('#splitter').addEventListener('mousedown', (e)=>{ dragging = true; document.body.style.cursor='col-resize'; e.preventDefault(); });
+  window.addEventListener('mousemove', (e)=>{
+    if(!dragging) return;
+    const r = $('#split').getBoundingClientRect();
+    let pct = ((e.clientX - r.left) / r.width) * 100;
+    pct = Math.max(15, Math.min(85, pct));
+    $('#paneDoc').style.flex = '1 1 ' + pct + '%';
+    $('#paneXml').style.flex = '1 1 ' + (100 - pct) + '%';
+  });
+  window.addEventListener('mouseup', ()=>{ dragging = false; document.body.style.cursor=''; });
+
+  // ---------- menüler ----------
+  $$('.menu [data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const menu = btn.parentElement;
+      const acik = menu.classList.contains('open');
+      $$('.menu').forEach(m=>m.classList.remove('open'));
+      if(!acik) menu.classList.add('open');
+    });
+  });
+  document.addEventListener('click', ()=>$$('.menu').forEach(m=>m.classList.remove('open')));
+
+  // ---------- diyaloglar ----------
+  function showDialog(opts){
+    $('#dlgTitle').textContent = opts.title || '';
+    const body = $('#dlgBody');
+    body.innerHTML = opts.html || '';
+    body.classList.toggle('wide', !!opts.wide);
+    $('#dlgBox').classList.toggle('wide', !!opts.wide);
+    if(opts.onBody) opts.onBody(body);
+    const foot = $('#dlgFoot');
+    foot.innerHTML = '';
+    (opts.buttons || [{label:'Kapat'}]).forEach(b=>{
+      const el = document.createElement('button');
+      el.className = 'btn' + (b.primary ? ' primary' : '');
+      el.textContent = b.label;
+      el.addEventListener('click', ()=>{
+        if(b.onClick){ if(b.onClick() === false) return; }
+        closeDialog();
+      });
+      foot.appendChild(el);
+    });
+    $('#dlg').hidden = false;
+    return body;
+  }
+  function closeDialog(){ $('#dlg').hidden = true; $('#dlgBody').innerHTML = ''; $('#dlgFoot').innerHTML = ''; }
+  $('#dlgX').addEventListener('click', closeDialog);
+  $('#dlg').addEventListener('click', (e)=>{ if(e.target && e.target.id === 'dlg') closeDialog(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeDialog(); });
+
+  function hataDialog(baslik, mesaj, detay){
+    showDialog({
+      title: baslik,
+      html: `<div class="dmsg"><div class="dicon err">!</div><div class="dtext">${esc(mesaj)}</div></div>`
+        + (detay ? `<div class="draw">${esc(detay)}</div>` : ''),
+      buttons: [{label:'Kapat', primary:true}]
+    });
+  }
+
+  // ---------- komutlar ----------
+  function runCmd(cmd){
+    $$('.menu').forEach(m=>m.classList.remove('open'));
+    switch(cmd){
+      case 'open': $('#fXml').click(); break;
+      case 'openXslt': $('#fXslt').click(); break;
+      case 'clear': temizle(); break;
+      case 'exit': cikis(); break;
+      case 'view-doc': setViewMode('doc'); break;
+      case 'view-xml': setViewMode('xml'); break;
+      case 'view-both': setViewMode('both'); break;
+      case 'print': yazdir(); break;
+      case 'verify': dogrula(); break;
+      case 'cert': sertifikaDialog(); break;
+      case 'verifyLog': dogrulamaDialog(); break;
+      case 'query': sorgula(); break;
+      case 'about': hakkindaDialog(); break;
+    }
+  }
+  document.addEventListener('click', (e)=>{
+    const b = e.target.closest('[data-cmd]');
+    if(!b) return;
+    e.preventDefault();
+    runCmd(b.dataset.cmd);
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(!(e.ctrlKey || e.metaKey)) return;
+    if(e.key === 'o' || e.key === 'O'){ e.preventDefault(); $('#fXml').click(); }
+    if(e.key === 'p' || e.key === 'P'){ e.preventDefault(); yazdir(); }
+  });
+
+  function cikis(){
+    if(isTauri){
+      tauriCagir('cikis').catch(()=>{
+        try{ window.__TAURI__.window.getCurrentWindow().close(); }catch(e){ window.close(); }
+      });
+    } else {
+      window.close();
+    }
+  }
+
+  // ---------- dosya okuma ----------
+  const WELCOME = '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><style>'
+    + 'html,body{height:100%;margin:0}body{display:flex;align-items:center;justify-content:center;background:#fff;'
+    + 'font:13px/1.6 "Segoe UI",Tahoma,sans-serif;color:#475467}'
+    + '.w{text-align:center;max-width:520px;padding:24px}.w h2{margin:0 0 6px;font-size:17px;color:#1f2328}'
+    + '.w p{margin:4px 0}.w .k{display:inline-block;padding:1px 6px;border:1px solid #d0d7de;border-radius:4px;background:#f6f8fa;font-size:11.5px}'
+    + '</style></head><body><div class="w"><h2>E-Belge Görüntüleyici</h2>'
+    + '<p>Bir e-Fatura / e-Arşiv / e-İrsaliye XML dosyası açmak için:</p>'
+    + '<p><span class="k">Dosya &rarr; Aç…</span> &nbsp;veya&nbsp; <span class="k">Ctrl+O</span> &nbsp;veya dosyayı bu pencereye sürükleyin.</p>'
+    + '<p style="color:#98a2b3;margin-top:14px">Belge, XML içindeki gömülü XSLT ile görüntülenir.</p>'
+    + '</div></body></html>';
+
+  const MAKS_DOSYA_BAYT = 64 * 1024 * 1024;
+
+  function readText(file, cb){
+    if(file.size > MAKS_DOSYA_BAYT){ cb(new Error('Dosya çok büyük (en fazla 64 MB).')); return; }
+    const r = new FileReader();
+    r.onload = (e)=>cb(null, e.target.result);
+    r.onerror = ()=>cb(new Error('Dosya okunamadı'));
+    r.readAsText(file, 'utf-8');
+  }
+
+  $('#fXml').addEventListener('change', (e)=>{
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!f) return;
+    busy('Belge Açılıyor...');
+    readText(f, (err, text)=>{
+      if(err){ idle('Hazır'); hataDialog('Dosya Hatası', 'Dosya okunamadı.', err.message); return; }
+      setTimeout(()=>belgeYukle(text, f.name), 30);
+    });
+  });
+
+  $('#fXslt').addEventListener('change', (e)=>{
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!f) return;
+    readText(f, (err, text)=>{
+      if(err){ hataDialog('Dosya Hatası', 'XSLT dosyası okunamadı.', err.message); return; }
+      xsltText = String(text).replace(/^\uFEFF/,'');
+      xsltFileName = f.name;
+      if(xmlText){ busy('Belge Açılıyor...'); setTimeout(onizle, 20); }
+      else idle('XSLT seçildi: ' + f.name);
+    });
+  });
+
+  // sürükle-bırak
+  document.addEventListener('dragover', (e)=>{ e.preventDefault(); });
+  document.addEventListener('drop', (e)=>{
+    e.preventDefault();
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if(!f) return;
+    busy('Belge Açılıyor...');
+    readText(f, (err, text)=>{
+      if(err){ idle('Hazır'); hataDialog('Dosya Hatası', 'Dosya okunamadı.', err.message); return; }
+      setTimeout(()=>belgeYukle(text, f.name), 30);
+    });
+  });
+
+  function belgeYukle(text, name){
+    xmlText = String(text).replace(/^\uFEFF/,'');
+    xmlFileName = name || 'fatura.xml';
+    xsltText = null; xsltFileName = null;
+    $('#fileLabel').textContent = xmlFileName;
+    $('#xmlPre').textContent = xmlText;
+    $('#xmlSize').textContent = Math.round(xmlText.length/1024) + ' KB';
+    try{
+      parsedDoc = new DOMParser().parseFromString(xmlText, 'text/xml');
+      if(parsedDoc.querySelector('parsererror')) throw new Error('XML ayrıştırma hatası');
+      parsedData = parseDoc(xmlText);
+    }catch(e){
+      parsedDoc = null; parsedData = null;
+      idle('Hazır');
+      hataDialog('Dosya Hatası', 'Fatura dosyasında hata mevcut.', e.message);
+      return;
+    }
+    gizleImza();
+    onizle();
+  }
+
+  function temizle(){
+    xmlText = null; xmlFileName = null; xsltText = null; xsltFileName = null;
+    parsedDoc = null; parsedData = null; docMode = 'none';
+    $('#xmlPre').textContent = ''; $('#xmlSize').textContent = ''; $('#fileLabel').textContent = '';
+    $('#docSource').textContent = '';
+    $('#docFrame').srcdoc = WELCOME;
+    gizleImza();
+    idle('Hazır');
+  }
+
+  // ---------- önizleme (XSLT) ----------
+  function onizle(){
+    let xt = xsltText;
+    let kaynak = '';
+
+    if(!xt){
+      const emb = getEmbeddedXslt();
+      if(emb){ xt = emb.text; kaynak = 'Gömülü XSLT' + (emb.name ? ': ' + emb.name : ''); }
+    } else {
+      kaynak = 'Seçili XSLT: ' + (xsltFileName || '');
+    }
+
+    if(xt){
+      try{
+        const html = transformXslt(xmlText, xt);
+        $('#docFrame').srcdoc = html;
+        docMode = 'xslt';
+        $('#docSource').textContent = kaynak;
+        idle('Hazır');
+        return;
+      }catch(e){
+        idle('Hazır');
+        xsltHata(e, kaynak);
+        return;
+      }
+    }
+
+    // gömülü XSLT yok: yerleşik görünüm
+    yerlesikGorunum();
+  }
+
+  function yerlesikGorunum(){
+    if(!parsedData){ idle('Hazır'); return; }
+    $('#docFrame').srcdoc = builtinHtml();
+    docMode = 'builtin';
+    $('#docSource').textContent = 'Yerleşik görünüm (gömülü XSLT yok)';
+    idle('Hazır');
+  }
+
+  function xsltHata(e, kaynak){
+    showDialog({
+      title: 'Gömülü XSLT Hatalı',
+      html: `<div class="dmsg"><div class="dicon err">!</div><div class="dtext">XML içerisindeki gömülü XSLT ile gösterilemiyor.<br><span style="color:#667085">${esc(kaynak||'')}</span></div></div>`
+        + `<div class="draw">${esc(e && e.message ? e.message : String(e))}</div>`,
+      buttons: [
+        { label:'Yerleşik görünüm ile göster', primary:true, onClick: ()=>yerlesikGorunum() },
+        { label:'Kapat' }
+      ]
+    });
+  }
+
+  function transformXslt(xmlSrc, xt){
+    const p = new DOMParser();
+    const xmlDoc = p.parseFromString(xmlSrc, 'text/xml');
+    if(xmlDoc.querySelector('parsererror')) throw new Error('XML ayrıştırma hatası');
+    const xslDoc = p.parseFromString(xt, 'text/xml');
+    const se = xslDoc.querySelector('parsererror');
+    if(se) throw new Error('XSLT ayrıştırma hatası: ' + se.textContent.slice(0, 200));
+    if(typeof XSLTProcessor === 'undefined') throw new Error('Bu ortamda XSLT desteği bulunamadı');
+    const proc = new XSLTProcessor();
+    proc.importStylesheet(xslDoc);
+    const frag = proc.transformToFragment(xmlDoc, document);
+    const holder = document.createElement('div');
+    holder.appendChild(frag);
+    // Fatura XML'i üçüncü taraftan gelir: XSLT çıktısındaki çalıştırılabilir
+    // içeriği temizle (script, olay öznitelikleri, javascript: adresleri).
+    temizleHtml(holder);
+    const htmlEl = holder.querySelector('html');
+    if(htmlEl) return '<!DOCTYPE html>' + htmlEl.outerHTML;
+    return '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"></head><body>' + holder.innerHTML + '</body></html>';
+  }
+
+  const YASAK_ETIKET = 'script,iframe,frame,frameset,object,embed,applet,link,meta,base,form';
+  function temizleHtml(kok){
+    kok.querySelectorAll(YASAK_ETIKET).forEach(el=>el.remove());
+    kok.querySelectorAll('*').forEach(el=>{
+      for(const attr of Array.from(el.attributes)){
+        const ad = attr.name.toLowerCase();
+        const deger = String(attr.value || '').replace(/[\s\u0000-\u001f]+/g, '').toLowerCase();
+        const adresMi = ad === 'href' || ad === 'src' || ad === 'xlink:href' || ad === 'action' || ad === 'formaction';
+        if(ad.startsWith('on') || ad === 'srcdoc'){
+          el.removeAttribute(attr.name);
+        } else if(adresMi && (deger.startsWith('javascript:') || deger.startsWith('vbscript:') || deger.startsWith('data:text/html'))){
+          el.removeAttribute(attr.name);
+        }
+      }
+    });
+  }
+
+  function getEmbeddedXslt(){
+    if(!parsedDoc) return null;
+    const bins = all(parsedDoc, 'EmbeddedDocumentBinaryObject');
+    let chosen = null;
+    for(const b of bins){
+      const mime = (b.getAttribute('mimeCode')||'').toLowerCase();
+      const fn = (b.getAttribute('filename')||'').toLowerCase();
+      if(mime.includes('xslt') || mime.includes('xsl') || fn.endsWith('.xslt') || fn.endsWith('.xsl')){ chosen = b; break; }
+    }
+    if(!chosen) return null;
+    const b64 = (chosen.textContent||'').replace(/\s/g,'');
+    try{
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+      return { text: new TextDecoder('utf-8').decode(bytes), name: chosen.getAttribute('filename') || '' };
+    }catch(e){ return null; }
+  }
+
+  function yazdir(){
+    const f = $('#docFrame');
+    try{
+      f.contentWindow.focus();
+      f.contentWindow.print();
+    }catch(e){
+      window.print();
+    }
+  }
+
+  // ---------- mali mühür ----------
+  function gizleImza(){ $('#imzaPanel').hidden = true; }
+
+  function dogrula(){
+    if(!parsedData){ hataDialog('Mali Mühür', 'Önce bir belge açın.'); return; }
+    busy('Belge Doğrulanıyor...');
+    setTimeout(()=>{
+      const s = parsedData.signatureInfo;
+      const panel = $('#imzaPanel');
+      const text = $('#imzaText');
+      panel.hidden = false;
+      panel.classList.remove('ok','err');
+      if(s && s.present){
+        panel.classList.add('ok');
+        text.textContent = 'Mali mühür / e-imza bilgisi bulundu (kriptografik doğrulama yapılmadı)'
+          + (s.signingTime ? ' — Mühür zamanı: ' + fmtStamp(s.signingTime) : '');
+      } else {
+        panel.classList.add('err');
+        text.textContent = 'Mali mühür / e-imza bilgisi bulunamadı';
+      }
+      $('#btnSertifika').disabled = !(s && s.present);
+      idle('Hazır');
+    }, 20);
+  }
+
+  function sertifikaDialog(){
+    const s = parsedData && parsedData.signatureInfo;
+    if(!s || !s.present){ hataDialog('Sertifika Görüntüleme', 'Belgede imza bilgisi bulunamadı.'); return; }
+    const rows = [];
+    if(s.subject) rows.push(['Sertifika Sahibi', s.subject]);
+    if(s.issuer) rows.push(['Sertifika Sağlayıcı', s.issuer]);
+    if(s.serial) rows.push(['Seri No', s.serial]);
+    if(s.signatory) rows.push([/^\d{10,11}$/.test(s.signatory.trim()) ? 'İmzalayan VKN/TCKN' : 'İmzalayan', s.signatory]);
+    if(s.signingTime) rows.push(['İmza Zamanı', fmtStamp(s.signingTime)]);
+    if(s.algorithm) rows.push(['İmza Algoritması', s.algorithm]);
+    showDialog({
+      title: 'Sertifika Görüntüleme',
+      html: rows.length
+        ? `<div class="drow">${rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v">${esc(r[1])}</div>`).join('')}</div>`
+        : '<div class="dtext">Sertifika alanları belgede bulunamadı.</div>',
+      buttons: [{label:'Çıkış', primary:true}]
+    });
+  }
+
+  function dogrulamaDialog(){
+    const s = parsedData && parsedData.signatureInfo;
+    const rows = [];
+    if(parsedData){
+      if(parsedData.id) rows.push(['Belge No', parsedData.id]);
+      if(parsedData.uuid) rows.push(['ETTN', parsedData.uuid]);
+      if(parsedData.profileId) rows.push(['Profil', parsedData.profileId]);
+      if(parsedData.digestValue) rows.push(['DigestValue', parsedData.digestValue]);
+    }
+    if(s && s.signingTime) rows.push(['İmza Zamanı', fmtStamp(s.signingTime)]);
+    if(s && s.algorithm) rows.push(['İmza Algoritması', s.algorithm]);
+    showDialog({
+      title: 'Doğrulama Detay Bilgileri',
+      html: (rows.length ? `<div class="drow">${rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v">${esc(r[1])}</div>`).join('')}</div>` : '')
+        + '<div class="dhint">Bu sürüm imzanın kriptografik doğrulamasını yapmaz; yalnızca belgedeki imza ve sertifika bilgilerini gösterir. Belgenin GİB sistemindeki durumu için <b>Sorgulama &rarr; Gelir İdaresinden Sorgula</b> kullanılabilir.</div>',
+      buttons: [{label:'Kapat', primary:true}]
+    });
+  }
+
+  function hakkindaDialog(){
+    const goster = (surum)=>showDialog({
+      title: 'Hakkında',
+      html: `<div class="dmsg"><div class="dicon" style="background:#1f6feb">e</div><div class="dtext">`
+        + `<b>E-Belge Görüntüleyici</b><br>Sürüm: ${esc(surum)}<br>`
+        + `<span style="color:#667085">e-Fatura / e-Arşiv / e-İrsaliye XML görüntüleyici</span></div></div>`
+        + `<div class="drow" style="margin-top:14px">`
+        + `<div class="k">Çalışma ortamı</div><div class="v">${isTauri ? 'Masaüstü (Tauri + Rust)' : 'Tarayıcı'}</div>`
+        + `<div class="k">Belge görünümü</div><div class="v">XML içindeki gömülü XSLT</div>`
+        + `<div class="k">Kaynak</div><div class="v">GİB Java görüntüleyicisinin yerine kullanılmak üzere hazırlanmıştır. Gelir İdaresi Başkanlığı ile resmi bağlantısı yoktur.</div>`
+        + `</div>`,
+      buttons: [{label:'Kapat', primary:true}]
+    });
+    const uygulama = window.__TAURI__ && window.__TAURI__.app;
+    if(isTauri && uygulama && typeof uygulama.getVersion === 'function'){
+      uygulama.getVersion().then(goster).catch(()=>goster('1.0.0'));
+    } else {
+      goster('1.0.0');
+    }
+  }
+
+  // ---------- ayrıştırma ----------
+  function parseParty(node){
+    const party = first(node,'Party') || node;
+    const name = txt(party,'Name') || txt(first(party,'PartyName')||party,'Name');
+    const taxScheme = first(party,'PartyTaxScheme');
+    // Birden fazla PartyIdentification olabilir (Ticaret Sicil No, MERSİS, VKN/TCKN).
+    // Yalnızca schemeID'si VKN/TCKN olanı seç; ilk kaydı körü körüne alma.
+    const ids = all(party,'PartyIdentification');
+    let vkn = '', tckn = '', chosenId = null;
+    ids.forEach(pi=>{
+      const idn = first(pi,'ID');
+      if(!idn) return;
+      const scheme = (idn.getAttribute('schemeID')||'').toUpperCase();
+      const val = (idn.textContent||'').trim();
+      if(!val) return;
+      if(scheme.includes('TCKN') && !tckn){ tckn = val; chosenId = chosenId || idn; }
+      else if(scheme.includes('VKN') && !vkn){ vkn = val; chosenId = chosenId || idn; }
+    });
+    if(!vkn && !tckn){
+      // schemeID hiç yoksa değerin uzunluğuna göre ayır (10 hane VKN, 11 hane TCKN).
+      // Ticaret Sicil No / MERSİS gibi başka şemalara dokunma.
+      ids.forEach(pi=>{
+        const idn = first(pi,'ID');
+        if(!idn) return;
+        if((idn.getAttribute('schemeID')||'').trim()) return;
+        const val = (idn.textContent||'').trim();
+        if(!vkn && /^\d{10}$/.test(val)){ vkn = val; chosenId = chosenId || idn; }
+        else if(!tckn && /^\d{11}$/.test(val)){ tckn = val; chosenId = chosenId || idn; }
+      });
+    }
+    if(!vkn && !tckn){
+      const company = txt(taxScheme||party,'CompanyID') || txt(party,'CompanyID');
+      if(company) vkn = company;
+    }
+    const idScheme = chosenId ? (chosenId.getAttribute('schemeID')||'') : '';
+    const idValue = chosenId ? (chosenId.textContent||'').trim() : '';
+    const vknTckn = vkn || tckn || idValue;
+    let taxOffice = '';
+    const ts = first(taxScheme||party,'TaxScheme');
+    if(ts) taxOffice = txt(ts,'Name') || txt(ts,'ID');
+    const addr = first(party,'PostalAddress') || first(party,'PhysicalLocation') || first(party,'Address');
+    let street='', city='', postal='', country='', district='';
+    if(addr){
+      street = txt(addr,'StreetName') || txt(addr,'AddressLine');
+      const al = first(addr,'AddressLine'); if(al && !street) street = txt(al,'Line');
+      city = txt(addr,'CityName') || txt(addr,'CitySubdivisionName');
+      district = txt(addr,'CitySubdivisionName');
+      postal = txt(addr,'PostalZone');
+      const c = first(addr,'Country'); if(c) country = txt(c,'Name') || txt(c,'IdentificationCode');
+    }
+    const phone = txt(first(party,'Contact')||party,'Telephone') || txt(party,'Telephone');
+    const email = txt(first(party,'Contact')||party,'ElectronicMail') || txt(party,'ElectronicMail');
+    const website = txt(first(party,'Contact')||party,'WebsiteURI');
+    const personName = txt(first(party,'Person')||party,'FirstName') + (txt(first(party,'Person')||party,'FamilyName')?' '+txt(first(party,'Person')||party,'FamilyName'):'');
+    return { name, vkn, tckn, vknTckn, idScheme, idValue, taxOffice, street, district, city, postal, country, phone, email, website, personName };
+  }
+
+  function cleanAmount(str){
+    if(!str) return str;
+    return String(str).replace(/(\d)\.(\d+)/g, (m,a,b)=>{
+      b = b.replace(/0+$/,'');
+      if(b.length===0) b='00';
+      else if(b.length===1) b=b+'0';
+      return a+'.'+b;
+    });
+  }
+
+  function parseAmount(node, local){
+    const n = first(node, local);
+    if(!n) return '';
+    const val = (n.textContent||'').trim();
+    const cur = n.getAttribute('currencyID') || '';
+    const out = cur ? (val+' '+cur) : val;
+    return cleanAmount(out);
+  }
+
+  function parseLine(l){
+    const item = first(l,'Item') || l;
+    const priceNode = first(l,'Price');
+    const qty = txt(l,'InvoicedQuantity') || txt(l,'DespatchedQuantity') || txt(l,'ReceivedQuantity') || txt(l,'Quantity');
+    const qtyUnit = attr(first(l,'InvoicedQuantity')||first(l,'DespatchedQuantity')||first(l,'ReceivedQuantity')||first(l,'Quantity'),'unitCode');
+    const name = txt(item,'Name') || txt(item,'Description');
+    const desc = txt(item,'Description');
+    const sellersId = txt(item,'SellersItemIdentification') ? txt(first(item,'SellersItemIdentification'),'ID') : '';
+    const buyersId = txt(item,'BuyersItemIdentification') ? txt(first(item,'BuyersItemIdentification'),'ID') : '';
+    let priceAmount = '';
+    const pa = first(priceNode||l,'PriceAmount');
+    if(pa) priceAmount = cleanAmount((pa.textContent||'').trim() + (pa.getAttribute('currencyID')?' '+pa.getAttribute('currencyID'):''));
+    const lineExt = parseAmount(l,'LineExtensionAmount');
+    const allowance = parseAmount(l,'AllowanceTotalAmount');
+    const taxTotal = first(l,'TaxTotal');
+    let taxPercent='', taxAmount='', taxableAmount='', taxExemption='', taxSchemeId='', taxSchemeName='';
+    const sub = first(taxTotal||l,'TaxSubtotal');
+    if(sub){
+      taxPercent = txt(sub,'Percent');
+      taxAmount = parseAmount(sub,'TaxAmount');
+      taxableAmount = parseAmount(sub,'TaxableAmount');
+      const cat = first(sub,'TaxCategory');
+      if(cat){
+        taxExemption = txt(cat,'TaxExemptionReason') || txt(cat,'TaxExemptionReasonCode');
+        const scheme = first(cat,'TaxScheme');
+        if(scheme){ taxSchemeId = txt(scheme,'ID'); taxSchemeName = txt(scheme,'Name'); }
+      }
+    }
+    if(!taxAmount && taxTotal) taxAmount = parseAmount(taxTotal,'TaxAmount');
+    const note = txt(l,'Note');
+    return { id: txt(l,'ID'), qty, qtyUnit, name, desc, sellersId, buyersId, priceAmount, lineExt, allowance, taxPercent, taxAmount, taxableAmount, taxExemption, taxSchemeId, taxSchemeName, note };
+  }
+
+  function parseDoc(xmlSrc){
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlSrc,'text/xml');
+    const pe = doc.querySelector('parsererror');
+    if(pe) throw new Error('XML ayrıştırma hatası: ' + pe.textContent.slice(0,200));
+    const rootName = doc.documentElement.localName;
+
+    const data = {
+      docType: rootName,
+      id: txt(doc,'ID'),
+      uuid: txt(doc,'UUID'),
+      issueDate: txt(doc,'IssueDate'),
+      issueTime: txt(doc,'IssueTime'),
+      profileId: txt(doc,'ProfileID'),
+      invoiceType: txt(doc,'InvoiceTypeCode') || txt(doc,'DespatchAdviceTypeCode') || txt(doc,'DocumentTypeCode'),
+      currency: txt(doc,'DocumentCurrencyCode') || txt(doc,'PricingCurrencyCode'),
+      taxCurrency: txt(doc,'TaxCurrencyCode'),
+      accountingCost: txt(doc,'AccountingCost'),
+      note: direct(doc.documentElement,'Note').map(n=>n.textContent.trim()).filter(Boolean),
+      supplier: null, customer: null, payee: null, carrier: null,
+      lines: [], taxTotals: [], withholdingTotals: [], legal: {},
+      paymentMeans: [], orderRef: null, billingRef: null, despatchRef: null,
+      deliveryTerms: '', deliveryDate: '', deliveryAddress: null,
+      taxExchangeRate: null, additionalDocs: [], signatureInfo: null, attachments: [],
+      digestValue: ''
+    };
+
+    const supNode = first(doc,'AccountingSupplierParty') || first(doc,'SenderParty') || first(doc,'DespatchSupplierParty');
+    if(supNode) data.supplier = parseParty(supNode);
+    const custNode = first(doc,'AccountingCustomerParty') || first(doc,'ReceiverParty') || first(doc,'DeliveryCustomerParty');
+    if(custNode) data.customer = parseParty(custNode);
+    const payeeNode = first(doc,'PayeeParty');
+    if(payeeNode) data.payee = parseParty(payeeNode);
+    const carrierNode = first(doc,'CarrierParty');
+    if(carrierNode) data.carrier = parseParty(carrierNode);
+
+    for(const tag of ['InvoiceLine','CreditNoteLine','DespatchLine','ReceiptLine']){
+      const ls = direct(doc.documentElement, tag);
+      if(ls.length){ data.lines = ls.map(parseLine); break; }
+    }
+
+    direct(doc.documentElement,'TaxTotal').forEach(tt=>{
+      const subtotals = all(tt,'TaxSubtotal');
+      if(subtotals.length){
+        subtotals.forEach(st=>{
+          const cat = first(st,'TaxCategory');
+          const scheme = cat ? first(cat,'TaxScheme') : null;
+          data.taxTotals.push({
+            taxable: parseAmount(st,'TaxableAmount'),
+            tax: parseAmount(st,'TaxAmount'),
+            percent: txt(st,'Percent') || (cat? txt(cat,'Percent'):''),
+            exemption: cat ? (txt(cat,'TaxExemptionReason') || txt(cat,'TaxExemptionReasonCode')) : '',
+            schemeId: scheme ? txt(scheme,'ID') : '',
+            schemeName: scheme ? txt(scheme,'Name') : ''
+          });
+        });
+      } else {
+        data.taxTotals.push({ taxable:'', tax: parseAmount(tt,'TaxAmount'), percent:'', exemption:'', schemeId:'', schemeName:'' });
+      }
+    });
+    direct(doc.documentElement,'WithholdingTaxTotal').forEach(wt=>{
+      const subtotals = all(wt,'TaxSubtotal');
+      if(subtotals.length) subtotals.forEach(st=>{
+        const cat = first(st,'TaxCategory'); const scheme = cat?first(cat,'TaxScheme'):null;
+        data.withholdingTotals.push({ taxable: parseAmount(st,'TaxableAmount'), tax: parseAmount(st,'TaxAmount'), percent: txt(st,'Percent')||(cat?txt(cat,'Percent'):''), schemeId: scheme?txt(scheme,'ID'):'', schemeName: scheme?txt(scheme,'Name'):'' });
+      });
+      else data.withholdingTotals.push({ taxable:'', tax: parseAmount(wt,'TaxAmount'), percent:'', schemeId:'', schemeName:'' });
+    });
+
+    const lmt = first(doc,'LegalMonetaryTotal');
+    if(lmt){
+      data.rawPayable = directText(lmt,'PayableAmount');
+      data.rawLineExtension = directText(lmt,'LineExtensionAmount');
+      data.legal = {
+        lineExtension: parseAmount(lmt,'LineExtensionAmount'),
+        taxExclusive: parseAmount(lmt,'TaxExclusiveAmount'),
+        taxInclusive: parseAmount(lmt,'TaxInclusiveAmount'),
+        allowance: parseAmount(lmt,'AllowanceTotalAmount'),
+        charge: parseAmount(lmt,'ChargeTotalAmount'),
+        prepaid: parseAmount(lmt,'PrepaidAmount'),
+        payable: parseAmount(lmt,'PayableAmount'),
+        payableAlternative: parseAmount(lmt,'PayableAlternativeAmount')
+      };
+    }
+
+    direct(doc.documentElement,'PaymentMeans').forEach(pm=>{
+      const fa = first(pm,'PayeeFinancialAccount') || first(pm,'PayerFinancialAccount');
+      data.paymentMeans.push({
+        code: txt(pm,'PaymentMeansCode'),
+        id: directText(pm,'ID') || directText(pm,'PaymentID'),
+        iban: fa ? txt(fa,'ID') : '',
+        name: fa ? txt(fa,'Name') : '',
+        branch: fa ? txt(first(fa,'FinancialInstitutionBranch'),'Name') : '',
+        dueDate: txt(pm,'PaymentDueDate')
+      });
+    });
+
+    const or = direct(doc.documentElement,'OrderReference')[0];
+    if(or) data.orderRef = { id: directText(or,'ID') || txt(or,'ID'), date: txt(or,'IssueDate'), salesOrderId: txt(or,'SalesOrderID') };
+    const br = direct(doc.documentElement,'BillingReference')[0];
+    if(br){
+      const idr = first(br,'InvoiceDocumentReference') || first(br,'DocumentReference');
+      data.billingRef = { id: (idr?directText(idr,'ID'):directText(br,'ID')) || txt(idr||br,'ID'), date: txt(idr||br,'IssueDate') };
+    }
+    const dr = direct(doc.documentElement,'DespatchDocumentReference')[0] || direct(doc.documentElement,'ReceiptDocumentReference')[0];
+    if(dr) data.despatchRef = { id: directText(dr,'ID') || txt(dr,'ID'), date: txt(dr,'IssueDate') };
+
+    const del = direct(doc.documentElement,'Delivery')[0] || direct(doc.documentElement,'Shipment')[0] || first(doc,'Delivery') || first(doc,'Shipment');
+    if(del){
+      data.deliveryDate = txt(del,'ActualDeliveryDate') || txt(del,'ActualDespatchDate') || txt(first(del,'DeliveryTerms')||del,'ID');
+      const addr = first(del,'DeliveryAddress') || first(del,'Address');
+      if(addr){
+        data.deliveryAddress = {
+          street: txt(addr,'StreetName'), city: txt(addr,'CityName'), district: txt(addr,'CitySubdivisionName'),
+          postal: txt(addr,'PostalZone'), country: (first(addr,'Country')? txt(first(addr,'Country'),'Name') : '')
+        };
+      }
+      const terms = first(del,'DeliveryTerms'); if(terms) data.deliveryTerms = txt(terms,'ID') || txt(terms,'SpecialTerms');
+    }
+
+    const er = direct(doc.documentElement,'TaxExchangeRate')[0] || direct(doc.documentElement,'PricingExchangeRate')[0] || first(doc,'TaxExchangeRate') || first(doc,'PricingExchangeRate');
+    if(er){
+      data.taxExchangeRate = { source: txt(er,'SourceCurrencyCode'), target: txt(er,'TargetCurrencyCode'), rate: txt(er,'CalculationRate') };
+    }
+
+    direct(doc.documentElement,'AdditionalDocumentReference').forEach(ad=>{
+      const bin = first(ad,'EmbeddedDocumentBinaryObject');
+      const att = first(ad,'Attachment');
+      const bin2 = att ? first(att,'EmbeddedDocumentBinaryObject') : null;
+      const b = bin || bin2;
+      const docRef = {
+        id: txt(ad,'ID'),
+        type: txt(ad,'DocumentType') || txt(ad,'DocumentTypeCode') || txt(ad,'DocumentDescription'),
+        mime: b ? b.getAttribute('mimeCode') : '',
+        filename: b ? b.getAttribute('filename') : '',
+        hasBinary: !!b,
+        binaryText: b ? b.textContent.trim() : ''
+      };
+      data.additionalDocs.push(docRef);
+      if(b) data.attachments.push({ name: docRef.filename || docRef.id || 'ek', mime: docRef.mime, b64: docRef.binaryText });
+    });
+
+    const digestRef = all(doc,'Reference').find(r => (r.getAttribute('URI')||'') === '');
+    if(digestRef){
+      const dv = first(digestRef,'DigestValue');
+      if(dv) data.digestValue = (dv.textContent||'').trim();
+    }
+
+    const sig = direct(doc.documentElement,'Signature')[0] || first(doc,'Signature');
+    if(sig){
+      const sp = first(sig,'SignatoryParty');
+      let partyName = '';
+      if(sp){
+        const pn = first(sp,'PartyName');
+        if(pn) partyName = txt(pn,'Name');
+        if(!partyName){
+          const pid = first(sp,'PartyIdentification');
+          if(pid) partyName = txt(pid,'ID');
+        }
+      }
+      if(!partyName){
+        const idNode = first(sig,'ID');
+        if(idNode) partyName = (idNode.textContent||'').trim();
+      }
+      const uri = first(sig,'DigitalSignatureAttachment') ? txt(first(first(sig,'DigitalSignatureAttachment'),'ExternalReference'),'URI') : '';
+      data.signatureInfo = { present:true, signatory: partyName, uri };
+    }
+
+    let hasXades = false;
+    direct(doc.documentElement,'UBLExtension').forEach(e=>{
+      const s = e.textContent || '';
+      if(s.includes('XAdESSignatures') || s.includes('QualifyingProperties') || s.includes('SignedInfo')) hasXades = true;
+    });
+    if(hasXades){
+      if(!data.signatureInfo) data.signatureInfo = { present:true, signatory:'', uri:'' };
+      data.signatureInfo.xades = true;
+    }
+
+    const dsSig = doc.getElementsByTagNameNS('http://www.w3.org/2000/09/xmldsig#','Signature')[0];
+    if(dsSig){
+      const si = first(dsSig,'SignedInfo');
+      const sm = si ? first(si,'SignatureMethod') : null;
+      const x509 = first(dsSig,'X509Data');
+      const subject = x509 ? txt(x509,'X509SubjectName') : '';
+      const issuer = x509 ? txt(x509,'X509IssuerName') : '';
+      const serial = x509 ? txt(x509,'X509SerialNumber') : '';
+      const signingTime = txt(doc,'SigningTime');
+      if(!data.signatureInfo) data.signatureInfo = { present:true, signatory:'', uri:'' };
+      data.signatureInfo.xades = true;
+      data.signatureInfo.subject = subject;
+      data.signatureInfo.issuer = issuer;
+      data.signatureInfo.serial = serial;
+      data.signatureInfo.signingTime = signingTime;
+      data.signatureInfo.algorithm = sm ? algName(sm.getAttribute('Algorithm')) : '';
+      data.signatureInfo.digestValue = data.digestValue;
+    }
+
+    parsedDoc = doc;
+    return data;
+  }
+
+  // ---------- yerleşik görünüm ----------
+  const BUILTIN_CSS = `
+    html,body{margin:0;background:#f3f4f6;color:#1f2328;font:13px/1.5 "Segoe UI",Tahoma,sans-serif}
+    .sheet{max-width:920px;margin:0 auto;background:#fff;padding:22px 26px 30px;min-height:100vh;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+    .inv header{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:10px;border-bottom:2px solid #111;margin-bottom:12px}
+    .inv .title{font-size:21px;font-weight:700;letter-spacing:1px}
+    .inv .meta{font-size:12px;color:#667085}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+    .box{border:1px solid #d0d7de;border-radius:6px;padding:9px 10px}
+    .box h3{margin:0 0 6px;font-size:11.5px;color:#667085;text-transform:uppercase;letter-spacing:.5px}
+    .kv{display:grid;grid-template-columns:132px 1fr;gap:4px 8px;font-size:12.5px}
+    .kv .k{color:#667085}
+    .kv .v{font-weight:500;word-break:break-word}
+    h3{margin:12px 0 6px;font-size:13px}
+    table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:6px}
+    th,td{border:1px solid #d0d7de;padding:5px 7px;vertical-align:top}
+    th{background:#f3f5f8;font-weight:600;text-align:left}
+    .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+    .totals{margin-top:12px;display:flex;justify-content:flex-end}
+    .totals table{width:auto;min-width:320px}
+    .totals td:first-child{font-weight:600}
+    .note{background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:7px 10px;margin:8px 0;font-size:12.5px}
+    .muted{color:#667085}
+    .sig{display:block;padding:8px 10px;border-radius:6px;background:#f0fdf4;border:1px solid #bbf7d0;font-size:12.5px;margin:8px 0}
+    .sig.warn{background:#fffbeb;border-color:#fde68a}
+    details.sig summary{cursor:pointer;font-weight:600;outline:none}
+    a{color:#1f6feb}
+    @media print{body{background:#fff}.sheet{box-shadow:none;max-width:none;padding:0;min-height:0}}
+  `;
+
+  function renderParty(p, title){
+    if(!p) return '';
+    const rows = [];
+    if(p.name) rows.push(['Ünvan', p.name]);
+    const vergiNo = p.vknTckn || p.vkn || p.tckn;
+    if(vergiNo) rows.push(['VKN / TCKN', vergiNo]);
+    if(p.taxOffice) rows.push(['Vergi Dairesi', p.taxOffice]);
+    const addr = [p.street, p.district, p.city, p.postal, p.country].filter(Boolean).join(' ');
+    if(addr) rows.push(['Adres', addr]);
+    if(p.phone) rows.push(['Tel', p.phone]);
+    if(p.email) rows.push(['E-Posta', p.email]);
+    if(p.website) rows.push(['Web', p.website]);
+    if(p.personName && p.personName.trim()) rows.push(['Yetkili', p.personName.trim()]);
+    return `<div class="box"><h3>${esc(title)}</h3><div class="kv">${rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v">${esc(r[1])}</div>`).join('')}</div></div>`;
+  }
+
+  function renderView(inv){
+    const title = inv.docType==='DespatchAdvice' ? 'İRSALİYE' : (inv.docType==='CreditNote' ? 'İADE FATURASI' : 'FATURA');
+    let html = '';
+    html += `<div class="inv">`;
+    html += `<header>
+      <div>
+        <div class="title">${title}</div>
+        <div class="meta">${inv.profileId? 'Profil: '+esc(inv.profileId)+' · ':''}${esc(inv.docType)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:17px;font-weight:700">${esc(inv.id)}</div>
+        <div class="meta">Tarih: ${esc(inv.issueDate)} ${esc(inv.issueTime)}</div>
+        <div class="meta">Para birimi: ${esc(inv.currency||'-')}</div>
+        ${inv.uuid?`<div class="meta">ETTN: ${esc(inv.uuid)}</div>`:''}
+        ${inv.accountingCost?`<div class="meta">Muhasebe kodu: ${esc(inv.accountingCost)}</div>`:''}
+      </div>
+    </header>`;
+
+    html += `<div class="grid">${renderParty(inv.supplier,'Satıcı')}${renderParty(inv.customer,'Alıcı')}</div>`;
+
+    if(inv.signatureInfo && inv.signatureInfo.present){
+      const s = inv.signatureInfo;
+      const rows = [];
+      if(s.signatory) rows.push([/^\d{10,11}$/.test(s.signatory.trim()) ? 'İmzalayan VKN/TCKN' : 'İmzalayan', s.signatory]);
+      if(s.subject) rows.push(['Sertifika sahibi', s.subject]);
+      if(s.issuer) rows.push(['Sertifika sağlayıcı', s.issuer]);
+      if(s.serial) rows.push(['Seri no', s.serial]);
+      if(s.signingTime) rows.push(['İmza zamanı', s.signingTime]);
+      if(s.algorithm) rows.push(['İmza algoritması', s.algorithm]);
+      if(s.digestValue) rows.push(['Belge özeti (DigestValue)', s.digestValue]);
+      const cls = s.xades ? 'sig' : 'sig warn';
+      const summary = 'Mali mühür / e-imza bilgisi bulundu — kriptografik doğrulama yapılmadı';
+      if(rows.length){
+        html += `<details class="${cls}"><summary>${summary}</summary><div class="kv" style="margin-top:8px">${rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v">${esc(r[1])}</div>`).join('')}</div></details>`;
+      } else {
+        html += `<div class="${cls}">${summary}</div>`;
+      }
+    }
+
+    const refs = [];
+    if(inv.orderRef) refs.push('Sipariş: '+esc(inv.orderRef.id)+(inv.orderRef.date?' ('+esc(inv.orderRef.date)+')':''));
+    if(inv.billingRef) refs.push('İlgili fatura: '+esc(inv.billingRef.id));
+    if(inv.despatchRef) refs.push('İrsaliye: '+esc(inv.despatchRef.id));
+    if(inv.deliveryDate) refs.push('Teslim tarihi: '+esc(inv.deliveryDate));
+    if(refs.length) html += `<div class="note">${refs.join(' · ')}</div>`;
+
+    if(inv.deliveryAddress){
+      const a = inv.deliveryAddress;
+      const s = [a.street, a.district, a.city, a.postal, a.country].filter(Boolean).join(' ');
+      if(s) html += `<div class="note"><strong>Teslimat adresi:</strong> ${esc(s)}</div>`;
+    }
+
+    if(inv.lines && inv.lines.length){
+      html += `<h3>Kalemler (${inv.lines.length})</h3>`;
+      html += `<div style="overflow-x:auto"><table>
+        <thead><tr><th>#</th><th>Mal/Hizmet</th><th>Miktar</th><th>Birim Fiyat</th><th>İskonto</th><th>KDV %</th><th>KDV Tutarı</th><th>Tutar</th></tr></thead><tbody>`;
+      inv.lines.forEach((l,i)=>{
+        html += `<tr>
+          <td class="num">${esc(l.id|| (i+1))}</td>
+          <td>${esc(l.name)}${l.desc && l.desc!==l.name? `<div class="muted" style="font-size:11px">${esc(l.desc)}</div>`:''}${l.sellersId? `<div class="muted" style="font-size:11px">Satıcı kodu: ${esc(l.sellersId)}</div>`:''}</td>
+          <td class="num">${esc(l.qty)} ${esc(l.qtyUnit)}</td>
+          <td class="num">${esc(l.priceAmount)}</td>
+          <td class="num">${esc(l.allowance)}</td>
+          <td class="num">${esc(l.taxPercent)}</td>
+          <td class="num">${esc(l.taxAmount)}</td>
+          <td class="num">${esc(l.lineExt)}</td>
+        </tr>`;
+        if(l.note && !/^unit\s*code\s*:/i.test(l.note)) html += `<tr><td colspan="8" class="muted" style="font-size:11px">Not: ${esc(l.note)}</td></tr>`;
+        if(l.taxExemption) html += `<tr><td colspan="8" class="muted" style="font-size:11px">İstisna: ${esc(l.taxExemption)}</td></tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    if(inv.taxTotals.length){
+      html += `<h3>Vergi Dağılımı (KDV)</h3><table><thead><tr><th>Vergi</th><th>Matrah</th><th>Oran</th><th>Vergi Tutarı</th><th>İstisna</th></tr></thead><tbody>`;
+      inv.taxTotals.forEach(t=>{
+        html += `<tr><td>${esc(t.schemeName||t.schemeId||'KDV')}</td><td class="num">${esc(t.taxable)}</td><td class="num">${esc(t.percent)}</td><td class="num">${esc(t.tax)}</td><td>${esc(t.exemption)}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+    }
+    if(inv.withholdingTotals.length){
+      html += `<h3>Tevkifat / Stopaj</h3><table><thead><tr><th>Vergi</th><th>Matrah</th><th>Oran</th><th>Tutar</th></tr></thead><tbody>`;
+      inv.withholdingTotals.forEach(t=>{
+        html += `<tr><td>${esc(t.schemeName||t.schemeId)}</td><td class="num">${esc(t.taxable)}</td><td class="num">${esc(t.percent)}</td><td class="num">${esc(t.tax)}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+    }
+
+    const L = inv.legal || {};
+    const isZero = v => !v || /^0+(\.0+)?(\s|$)/.test(String(v).trim());
+    const totalRows = [];
+    if(L.lineExtension && !isZero(L.lineExtension)) totalRows.push(['Mal/Hizmet Toplamı', L.lineExtension]);
+    if(L.allowance && !isZero(L.allowance)) totalRows.push(['Toplam İskonto', L.allowance]);
+    if(L.charge && !isZero(L.charge)) totalRows.push(['Toplam Masraf', L.charge]);
+    if(L.taxExclusive && !isZero(L.taxExclusive)) totalRows.push(['Vergiler Hariç Toplam', L.taxExclusive]);
+    if(L.taxInclusive && !isZero(L.taxInclusive)) totalRows.push(['Vergiler Dahil Toplam', L.taxInclusive]);
+    if(L.prepaid && !isZero(L.prepaid)) totalRows.push(['Ön Ödeme', L.prepaid]);
+    if(L.payable) totalRows.push(['ÖDENECEK TUTAR', L.payable]);
+    if(L.payableAlternative && !isZero(L.payableAlternative)) totalRows.push(['Alternatif Ödenecek', L.payableAlternative]);
+    if(totalRows.length){
+      html += `<div class="totals"><table>`;
+      totalRows.forEach(([k,v])=>{
+        const bold = k.includes('ÖDENECEK');
+        html += `<tr><td ${bold?'style="font-size:14px"':''}>${esc(k)}</td><td class="num" ${bold?'style="font-size:14px;font-weight:700"':''}>${esc(v)}</td></tr>`;
+      });
+      html += `</table></div>`;
+    }
+
+    if(inv.paymentMeans.length){
+      html += `<h3>Ödeme Bilgileri</h3>`;
+      inv.paymentMeans.forEach(pm=>{
+        const rows = [];
+        if(pm.code) rows.push(['Ödeme tipi kodu', pm.code]);
+        if(pm.id) rows.push(['Ödeme ID', pm.id]);
+        if(pm.iban) rows.push(['IBAN', pm.iban]);
+        if(pm.name) rows.push(['Hesap adı', pm.name]);
+        if(pm.branch) rows.push(['Şube', pm.branch]);
+        if(pm.dueDate) rows.push(['Vade tarihi', pm.dueDate]);
+        html += `<div class="box" style="margin-bottom:8px"><div class="kv">${rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v">${esc(r[1])}</div>`).join('')}</div></div>`;
+      });
+    }
+
+    if(inv.taxExchangeRate){
+      const er = inv.taxExchangeRate;
+      html += `<div class="note">Döviz kuru: ${esc(er.source)} → ${esc(er.target)} = ${esc(er.rate)}</div>`;
+    }
+
+    if(inv.note && inv.note.length){
+      html += `<h3>Notlar</h3>`;
+      inv.note.forEach(n=>{ html += `<div class="note">${esc(n)}</div>`; });
+    }
+
+    if(inv.attachments && inv.attachments.length){
+      html += `<h3>Ekler</h3>`;
+      inv.attachments.forEach((a,i)=>{
+        const ad = esc(a.name || 'Ek ' + (i+1));
+        const mime = /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/i.test(String(a.mime||'')) ? a.mime : 'application/octet-stream';
+        const b64 = String(a.b64||'').replace(/\s+/g,'');
+        // Yalnızca gerçek base64 verisini bağlantıya dönüştür; aksi halde metin olarak göster.
+        if(b64 && /^[A-Za-z0-9+/]+={0,2}$/.test(b64)){
+          const url = 'data:' + mime + ';base64,' + b64;
+          html += `<div class="note"><a href="${esc(url)}" download="${ad}">${ad}</a> <span class="muted">(${esc(mime)})</span></div>`;
+        } else {
+          html += `<div class="note">${ad} <span class="muted">(ek verisi okunamadı)</span></div>`;
+        }
+      });
+    }
+
+    if(inv.additionalDocs && inv.additionalDocs.length){
+      html += `<div class="muted" style="font-size:12px;margin-top:8px">Ek belgeler: ${inv.additionalDocs.map(d=>esc(d.id||d.type)).join(', ')}</div>`;
+    }
+
+    html += `</div>`;
+    return html;
+  }
+
+  function builtinHtml(){
+    return '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><style>' + BUILTIN_CSS + '</style></head><body>'
+      + '<div class="sheet"><div class="note" style="margin-bottom:14px">Belgede gömülü XSLT bulunmadığı için yerleşik görünüm kullanılıyor.</div>'
+      + renderView(parsedData) + '</div></body></html>';
+  }
+
+  // ---------- GİB sorgusu ----------
+  const GIB_KOD = {
+    '0': { baslik:'Belge bulunamadı', metin:'İlgili fatura bilgisi GİB sisteminde bulunmamaktadır.', tone:'warn' },
+    '1': { baslik:'Belge bulundu', metin:'İlgili fatura bilgisi GİB sisteminde bulunmaktadır.', tone:'ok' },
+    '2': { baslik:'Belge iptal', metin:'İlgili fatura iptal edilmiştir.', tone:'err' },
+    '3': { baslik:'Belgede hata', metin:'İlgili fatura içeriğinde hata mevcut.', tone:'err' },
+    '8': { baslik:'Sorgu bilgileri geçersiz', metin:'GİB, sorguda gönderilen VKN/TCKN bilgisini geçersiz buldu. Satıcı veya alıcı vergi kimlik numarası hatalı ya da eksik olabilir.', tone:'err' }
+  };
+
+  function buildQueryUrl(data){
+    if(!data) return null;
+    const supplier = data.supplier || {};
+    const customer = data.customer || {};
+    const id = (data.id || '').trim();
+    const supplierId = (supplier.vknTckn || supplier.vkn || supplier.tckn || '').trim();
+    const buyerId = (customer.vknTckn || customer.vkn || customer.tckn || '').trim();
+    const payable = (data.rawPayable || '').trim();
+    const lineExt = (data.rawLineExtension || '').trim();
+    const enc = encodeURIComponent;
+    const base = 'https://sorgu.efatura.gov.tr/eFaturaSrg/efaturasrg?';
+
+    if(data.docType === 'DespatchAdvice'){
+      if(!supplierId || !id) return null;
+      return base + 'SATICIVKN=' + enc(supplierId) + '&IRSNO=' + enc(id) + '&ZAMANYAZ&&REPTYPE=EIRSDOGRULAMA';
+    }
+    if((data.profileId || '').toUpperCase() === 'EARSIVFATURA'){
+      if(!supplierId || !buyerId || !id) return null;
+      return base + 'SATICIVKNTCKN=' + enc(supplierId)
+        + '&ALICIVKNTCKN=' + enc(buyerId)
+        + '&FATNO=' + enc(id)
+        + '&ODTUTAR=' + enc(payable)
+        + '&TOPTUTAR=' + enc(lineExt)
+        + '&FATDUZTAR=' + enc(data.issueDate || '')
+        + '&REPTYPE=EARSVDOGRULAMA';
+    }
+    if(!supplierId || !id || !data.digestValue) return null;
+    return base + 'SATICIVKN=' + enc(supplierId)
+      + '&BIRIMKOD=' + enc(id.substring(0,3))
+      + '&SIRANO=' + enc(id.substring(3))
+      + '&ODTUTAR=' + enc(payable)
+      + '&FHASH=' + enc(data.digestValue)
+      + '&ZAMANYAZ&REPTYPE=EFTRDOGRULAMA';
+  }
+
+  function fmtStamp(s){
+    s = String(s||'').trim();
+    if(!s) return '';
+    let m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(s);
+    if(m) return `${m[3]}.${m[2]}.${m[1]} ${m[4]}:${m[5]}:${m[6]}`;
+    m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/.exec(s);
+    if(m) return `${m[3]}.${m[2]}.${m[1]} ${m[4]}:${m[5]}${m[6] ? ':'+m[6] : ''}`;
+    return s;
+  }
+
+  function fmtTarih(s){
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s||'').trim());
+    return m ? `${m[3]}.${m[2]}.${m[1]}` : String(s||'');
+  }
+
+  function parseGibResponse(text){
+    let satirlar = String(text||'').replace(/\r/g,'').split('\n').map(s=>s.trim()).filter(Boolean);
+    let kod = satirlar.length ? satirlar[0] : '';
+    // Bazı yanıtlar tek satırda "1 SEND_TIME=... RECEIVE_TIME=..." biçiminde gelir.
+    if(/\s/.test(kod)){
+      const parcalar = kod.split(/\s+/);
+      kod = parcalar[0];
+      satirlar = parcalar.slice(1).concat(satirlar.slice(1));
+    }
+    const alanlar = {};
+    const sira = [];
+    satirlar.forEach(l=>{
+      const i = l.indexOf('=');
+      if(i>0){
+        const k = l.slice(0,i).trim();
+        const v = l.slice(i+1).trim();
+        alanlar[k] = v;
+        sira.push(v);
+      } else if(l){
+        sira.push(l);
+      }
+    });
+    return { kod, alanlar, sira };
+  }
+
+  function sorguSonucuDialog(text){
+    const { kod, alanlar, sira } = parseGibResponse(text);
+    const bilgi = GIB_KOD[kod];
+    const tone = bilgi ? bilgi.tone : '';
+    const d = parsedData || {};
+    const isDespatch = d.docType === 'DespatchAdvice';
+    const isEarsiv = (d.profileId||'').toUpperCase() === 'EARSIVFATURA';
+    const kayitli = kod === '1' || kod === '2' || kod === '3';
+
+    function gibMetin(k){
+      if(k === '0'){
+        if(isEarsiv) return 'İlgili fatura bilgisi GİB sisteminde bulunmamaktadır.';
+        if(isDespatch) return 'İlgili irsaliye GİB sisteminden geçmemiş ve/veya alıcıya başarıyla ulaştırılmamıştır.';
+        return 'İlgili fatura GİB sisteminden geçmemiş ve/veya alıcıya başarıyla ulaştırılmamıştır.';
+      }
+      if(k === '1'){
+        if(isEarsiv) return 'İlgili fatura bilgisi GİB sisteminde bulunmaktadır.';
+        if(isDespatch) return 'İlgili irsaliye GİB sisteminden geçmiş ve alıcıya başarıyla ulaştırılmıştır.';
+        return 'İlgili fatura GİB sisteminden geçmiş ve alıcıya başarıyla ulaştırılmıştır.';
+      }
+      if(k === '2'){
+        if(isEarsiv) return 'İlgili fatura iptal edilmiştir.';
+        return 'İlgili fatura GİB sisteminden geçmiş ve alıcı faturayı reddetmiştir.';
+      }
+      if(k === '3') return 'İlgili fatura GİB sisteminden geçmiş ve fatura iptal edilmiştir.';
+      return bilgi ? bilgi.metin : 'GİB yanıt kodu tanınmadı; ham yanıta bakın.';
+    }
+
+    const rows = [];
+    if(kayitli){
+      const tarih = fmtTarih(d.issueDate);
+      if(tarih) rows.push([isDespatch ? 'İrsaliye tarihi' : 'Fatura tarihi', tarih + (d.issueTime ? ' ' + d.issueTime : '')]);
+      const imza = d.signatureInfo && d.signatureInfo.signingTime;
+      if(imza) rows.push(['İmzalanma zamanı', fmtStamp(imza)]);
+
+      const zaman = v => {
+        v = String(v||'').trim();
+        return /^\d{14}$/.test(v) || /^\d{4}-\d{2}-\d{2}[T ]/.test(v) ? fmtStamp(v) : '';
+      };
+      // GİB yanıtında RECEIVE_TIME = GİB'in belgeyi aldığı, SEND_TIME = GİB'in alıcıya gönderdiği zaman.
+      const gibeIletilme = zaman(alanlar.RECEIVE_TIME || sira[0]);
+      const aliciyaIletilme = zaman(alanlar.SEND_TIME || sira[1]);
+      if(gibeIletilme) rows.push(["GİB'e iletilme zamanı", gibeIletilme]);
+      if(aliciyaIletilme) rows.push(['Alıcıya iletilme zamanı', aliciyaIletilme]);
+      const yanit = zaman(alanlar.RESPONSE_TIME);
+      if(yanit) rows.push(['Alıcı yanıtı', yanit]);
+
+      const itirazHam = alanlar.ITIRAZ || alanlar.ITIRAZ_DURUM || (sira[2] && /^[0-3]$/.test(sira[2]) ? sira[2] : '');
+      if(itirazHam){
+        const itirazMap = {
+          '0': 'İptal/itiraz yok',
+          '1': 'Fatura itirazdan dolayı iptal edildi.',
+          '2': 'Faturaya satıcı itiraz talebi açtı.',
+          '3': 'Faturaya alıcı itiraz talebi açtı.'
+        };
+        rows.push(['İptal/itiraz durumu', itirazMap[itirazHam] || itirazHam]);
+      }
+    }
+
+    showDialog({
+      title: 'Sorgulama Sonucu',
+      html: `<div class="dmsg">
+          <div class="dicon ${tone}">${esc(kod || '?')}</div>
+          <div class="dtext"><b>${esc(bilgi ? bilgi.baslik : 'Bilinmeyen sonuç')}</b><br>
+            ${esc(gibMetin(kod))}
+            ${rows.length ? `<div class="drow" style="margin-top:10px">${rows.map(r=>`<div class="k">${esc(r[0])}</div><div class="v">${esc(r[1])}</div>`).join('')}</div>` : ''}
+          </div>
+        </div>
+        <div class="muted" style="font-size:12px;margin-top:12px">Ham yanıt</div>
+        <div class="draw">${esc(String(text||'').trim() || '(boş yanıt)')}</div>`,
+      buttons: [
+        { label:'Kapat', primary:true }
+      ]
+    });
+  }
+
+  function tarayiciAc(url){
+    try{ window.open(url, '_blank', 'noopener'); }catch(e){}
+  }
+
+  function sorgula(){
+    if(!parsedData){ hataDialog('Sorgulama', 'Önce bir belge açın.'); return; }
+    const url = buildQueryUrl(parsedData);
+    if(!url){
+      hataDialog('Sorgulama', 'Belge, GİB sorgusu için gerekli bilgileri içermiyor.',
+        'Gerekli alanlar: satıcı VKN/TCKN, belge numarası' + (parsedData.docType === 'Invoice' ? ' ve imza özeti (DigestValue)' : '') + '.');
+      return;
+    }
+    busy('Sorgulanıyor...');
+    setTimeout(async ()=>{
+      if(!isTauri){
+        idle('Hazır');
+        showDialog({
+          title: 'Sorgulama Sonucu',
+          html: `<div class="dmsg"><div class="dicon warn">i</div><div class="dtext">Tarayıcıda GİB yanıtı okunamıyor (CORS). Sorguyu tarayıcıda açabilirsiniz.</div></div>
+            <div class="draw">${esc(url)}</div>`,
+          buttons: [
+            { label:'Tarayıcıda Aç', primary:true, onClick: ()=>{ tarayiciAc(url); return false; } },
+            { label:'Kapat' }
+          ]
+        });
+        return;
+      }
+      try{
+        const cevap = await tauriCagir('gib_sorgula', { url });
+        idle('Hazır');
+        sorguSonucuDialog(cevap);
+      }catch(e){
+        idle('Hazır');
+        hataDialog('Sorgulama Sonucu', 'Sorgu başarısız: ' + (e && e.message ? e.message : String(e)), String(e));
+      }
+    }, 20);
+  }
+
+  // ---------- başlangıç ----------
+  function baslangic(){
+    setViewMode('doc');
+    temizle();
+    if(!isTauri){
+      // Tarayıcıda deneme: index.html?xml=fatura.xml
+      const p = new URLSearchParams(location.search).get('xml');
+      if(p){
+        busy('Belge Açılıyor...');
+        fetch(p).then(r=>{
+          if(!r.ok) throw new Error('Dosya bulunamadı (HTTP ' + r.status + ')');
+          return r.text();
+        }).then(t=>belgeYukle(t, p.split('/').pop()))
+          .catch(e=>{ idle('Hazır'); hataDialog('Dosya Hatası', 'Dosya açılamadı.', e.message); });
+      }
+      return;
+    }
+    tauriCagir('baslangic_dosyasi').then(yol=>{
+      if(!yol) return;
+      busy('Belge Açılıyor...');
+      tauriCagir('dosya_oku', { yol }).then(text=>{
+        belgeYukle(text, String(yol).split(/[\\/]/).pop());
+      }).catch(e=>{
+        idle('Hazır');
+        hataDialog('Dosya Hatası', 'Dosya açılamadı.', String(e));
+      });
+    }).catch(()=>{});
+  }
+
+  baslangic();
+})();
+</script>
+</body>
+</html>

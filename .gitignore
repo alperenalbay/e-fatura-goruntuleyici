@@ -1,0 +1,19 @@
+# Bağımlılıklar ve derleme çıktıları
+node_modules/
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Üretilen arayüz kopyası (index.html tek kaynaktır)
+ui/*
+!ui/.gitkeep
+
+# Editör / işletim sistemi
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Günlükler ve geçici dosyalar
+*.log
+*.tmp
