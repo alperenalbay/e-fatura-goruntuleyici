@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>e-Fatura Görüntüleyici — Java Gerektirmeyen Açık Kaynak Masaüstü Uygulaması</title>
+  <meta name="description" content="GİB'in Java tabanlı görüntüleyicisine alternatif, Java gerektirmeyen açık kaynak masaüstü uygulama. e-Fatura, e-Arşiv ve e-İrsaliye XML belgelerini görüntüler, yazdırır ve GİB'de sorgular. Tauri + Rust." />
+  <meta name="keywords" content="e-fatura görüntüleyici, e-arşiv, e-irsaliye, GİB, UBL, XML, Java gerektirmeyen, açık kaynak, Tauri, Rust, Windows" />
+  <meta name="author" content="e-Fatura Görüntüleyici contributors" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://alperenalbay.github.io/e-fatura-goruntuleyici/" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%231f6feb' d='M7 3h7l4 4v14H7z'/></svg>" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="tr_TR" />
+  <meta property="og:title" content="e-Fatura Görüntüleyici — Açık Kaynak Masaüstü Uygulaması" />
+  <meta property="og:description" content="Java gerektirmeyen, açık kaynak e-Fatura/e-Arşiv/e-İrsaliye XML görüntüleyici. GİB görüntüleyicisinin yerine." />
+  <meta property="og:url" content="https://alperenalbay.github.io/e-fatura-goruntuleyici/" />
+  <meta property="og:image" content="https://alperenalbay.github.io/e-fatura-goruntuleyici/screenshot.jpg" />
+  <meta property="og:site_name" content="e-Fatura Görüntüleyici" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="e-Fatura Görüntüleyici" />
+  <meta name="twitter:description" content="Java gerektirmeyen açık kaynak e-Fatura/e-Arşiv/e-İrsaliye XML görüntüleyici." />
+  <meta name="twitter:image" content="https://alperenalbay.github.io/e-fatura-goruntuleyici/screenshot.jpg" />
+
+  <!-- Structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "e-Fatura Görüntüleyici",
+    "operatingSystem": "Windows",
+    "applicationCategory": "BusinessApplication",
+    "description": "GİB'in Java tabanlı görüntüleyicisine alternatif, Java gerektirmeyen açık kaynak masaüstü uygulama. e-Fatura, e-Arşiv ve e-İrsaliye XML belgelerini görüntüler, yazdırır ve GİB'de sorgular.",
+    "url": "https://github.com/alperenalbay/e-fatura-goruntuleyici",
+    "downloadUrl": "https://github.com/alperenalbay/e-fatura-goruntuleyici/releases/latest",
+    "softwareVersion": "1.0.0",
+    "license": "https://opensource.org/licenses/MIT",
+    "inLanguage": "tr",
+    "screenshot": "https://alperenalbay.github.io/e-fatura-goruntuleyici/screenshot.jpg"
+  }
+  </script>
+
+  <style>
+    :root{--bg:#0d1117;--card:#161b22;--fg:#e6edf3;--muted:#8b949e;--accent:#1f6feb;--border:#30363d}
+    *{box-sizing:border-box}
+    body{margin:0;font:16px/1.6 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+    .wrap{max-width:960px;margin:0 auto;padding:32px 20px}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+    header h1{font-size:26px;margin:0}
+    .tag{color:var(--muted);font-size:14px}
+    .hero{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px}
+    .hero img{width:100%;border-radius:8px;border:1px solid var(--border);margin-top:16px}
+    .btns{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+    .btn{display:inline-block;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600}
+    .btn.primary{background:var(--accent);color:#fff}
+    .btn.secondary{background:transparent;color:var(--fg);border:1px solid var(--border)}
+    h2{font-size:20px;margin:28px 0 12px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
+    .card h3{margin:0 0 6px;font-size:15px}
+    .card p{margin:0;color:var(--muted);font-size:14px}
+    ul{padding-left:20px}
+    li{margin:6px 0}
+    footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:13px}
+    a{color:var(--accent)}
+    code{background:var(--card);padding:2px 6px;border-radius:4px;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#1f6feb" stroke-width="1.6"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>
+      <div>
+        <h1>e-Fatura Görüntüleyici</h1>
+        <div class="tag">Java gerektirmeyen, açık kaynak masaüstü uygulaması — Windows</div>
+      </div>
+    </header>
+
+    <section class="hero">
+      <p><strong>GİB'in Java Web Start tabanlı e-Fatura görüntüleyicisine alternatif</strong>, Java gerektirmeyen açık kaynak masaüstü uygulama. e-Fatura, e-Arşiv ve e-İrsaliye XML belgelerini görüntüler, yazdırır ve GİB sorgu servisinde kontrol eder. Arayüz HTML/JavaScript, arka uç Rust (Tauri 2).</p>
+      <div class="btns">
+        <a class="btn primary" href="https://github.com/alperenalbay/e-fatura-goruntuleyici/releases/latest">Son sürümü indir</a>
+        <a class="btn secondary" href="https://github.com/alperenalbay/e-fatura-goruntuleyici">GitHub deposu</a>
+        <a class="btn secondary" href="https://github.com/alperenalbay/e-fatura-goruntuleyici/blob/main/README.md">Dokümantasyon</a>
+      </div>
+      <img src="screenshot.jpg" alt="e-Fatura Görüntüleyici ekran görüntüsü — kurgusal örnek fatura" loading="lazy" />
+    </section>
+
+    <h2>Özellikler</h2>
+    <div class="grid">
+      <div class="card"><h3>e-Fatura / e-Arşiv / e-İrsaliye</h3><p>UBL-TR 1.2 / 2.1 belgelerini görüntüler.</p></div>
+      <div class="card"><h3>Gömülü XSLT</h3><p>GİB görüntüleyicisindeki gibi çizim; gömülü XSLT yoksa yerleşik görünüm.</p></div>
+      <div class="card"><h3>Yazdır / PDF</h3><p>Windows yazdırma penceresinden kâğıda veya PDF'e.</p></div>
+      <div class="card"><h3>Mali mühür bilgisi</h3><p>İmzalayan, sertifika, zaman, algoritma, DigestValue.</p></div>
+      <div class="card"><h3>GİB'de Sorgula</h3><p>Belge kayıtlıysa tarih, iletilme zamanları ve iptal/itiraz durumu.</p></div>
+      <div class="card"><h3>Sürükle-bırak</h3><p>Dosya pencereye bırakın veya komut satırından açın.</p></div>
+    </div>
+
+    <h2>Kurulum</h2>
+    <ul>
+      <li><strong>Kurulum paketi:</strong> <code>e-Fatura Goruntuleyici_&lt;sürüm&gt;_x64-setup.exe</code> — kullanıcı bazlı, yönetici yetkisi gerekmez.</li>
+      <li><strong>Taşınabilir sürüm:</strong> <code>efatura-goruntuleyici.exe</code> tek dosya, kurulum gerektirmez.</li>
+      <li>Paket kod imzalı değildir; Windows SmartScreen uyarısı gösterebilir.</li>
+    </ul>
+
+    <h2>Neden açık kaynak?</h2>
+    <ul>
+      <li>Belgeler yalnızca cihazınızda işlenir; hiçbir sunucuya yüklenmez.</li>
+      <li>Telemetri veya analitik yok.</li>
+      <li>GİB sorgusu yalnızca kullanıcı "Sorgula" dediğinde <code>sorgu.efatura.gov.tr</code> adresine gider.</li>
+      <li>MIT lisansı ile yayımlanmıştır.</li>
+    </ul>
+
+    <h2>Sınırlamalar</h2>
+    <ul>
+      <li>Mali mühür/e-imza için kriptografik doğrulama yapılmaz.</li>
+      <li>GİB şema doğrulaması yapılmaz.</li>
+      <li>Tek dosya; toplu klasör tarama yok.</li>
+    </ul>
+
+    <footer>
+      <p>Bu proje Gelir İdaresi Başkanlığı (GİB) ile bağlantılı değildir. "e-Fatura", "e-Arşiv" ve "e-İrsaliye" ilgili kurumların markaları olabilir. Uygulama "olduğu gibi" sunulur.</p>
+      <p><a href="https://github.com/alperenalbay/e-fatura-goruntuleyici">GitHub</a> · <a href="https://github.com/alperenalbay/e-fatura-goruntuleyici/releases">Sürümler</a> · <a href="https://github.com/alperenalbay/e-fatura-goruntuleyici/issues">Hata bildir</a> · <a href="https://github.com/alperenalbay/e-fatura-goruntuleyici/blob/main/LICENSE">MIT Lisansı</a></p>
+    </footer>
+  </div>
+</body>
+</html>
