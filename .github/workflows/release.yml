@@ -47,8 +47,4 @@ jobs:
           releaseBody: "Değişiklikler için CHANGELOG.md dosyasına bakın."
           releaseDraft: true
           prerelease: false
-
-      - name: Taşınabilir exe'yi sürüme ekle
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${GITHUB_REF_NAME}" src-tauri/target/release/efatura-goruntuleyici.exe --clobber
+          uploadPlainBinary: true
