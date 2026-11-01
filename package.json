@@ -8,7 +8,8 @@
     "sync": "node scripts/sync-ui.mjs",
     "dev": "node scripts/sync-ui.mjs && tauri dev",
     "build": "tauri build",
-    "build:exe": "tauri build --no-bundle"
+    "build:exe": "tauri build --no-bundle",
+    "tauri": "tauri"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"
